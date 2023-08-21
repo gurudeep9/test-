@@ -1236,7 +1236,8 @@ func (s *SqlPostStore) getPostsSinceCollapsedThreads(options model.GetPostsSince
 		Where(sq.Gt{"Posts.UpdateAt": options.Time}).
 		Where(sq.Eq{"Posts.RootId": ""}).
 		OrderBy("Posts.CreateAt DESC").
-		Limit(1000).
+		Offset(uint64(options.Page * options.PerPage)).
+		Limit(uint64(options.PerPage)).
 		ToSql()
 
 	if err != nil {
@@ -1252,10 +1253,22 @@ func (s *SqlPostStore) getPostsSinceCollapsedThreads(options model.GetPostsSince
 
 //nolint:unparam
 func (s *SqlPostStore) GetPostsSince(options model.GetPostsSinceOptions, allowFromCache bool, sanitizeOptions map[string]bool) (*model.PostList, error) {
+	if options.Page < 0 {
+		return nil, store.NewErrInvalidInput("Post", "<options.Page>", options.Page)
+	}
+	if options.PerPage < 0 {
+		return nil, store.NewErrInvalidInput("Post", "<options.PerPage>", options.PerPage)
+	}
+	// Add original limit of 1000 to maintain backwards compatibility with mobile and plugins.
+	if options.PerPage == 0 {
+		options.PerPage = 1000
+	}
+
 	if options.CollapsedThreads {
 		return s.getPostsSinceCollapsedThreads(options, sanitizeOptions)
 	}
 
+	offset := options.Page * options.PerPage
 	posts := []*model.Post{}
 
 	order := "DESC"
@@ -1281,8 +1294,7 @@ func (s *SqlPostStore) GetPostsSince(options model.GetPostsSinceOptions, allowFr
 				  Posts p2
 			  WHERE
 				  (UpdateAt > ?
-					  AND ChannelId = ?)
-				  LIMIT 1000)
+					  AND ChannelId = ?))
 			  UNION
 				  (SELECT
 					  Id
@@ -1297,26 +1309,24 @@ func (s *SqlPostStore) GetPostsSince(options model.GetPostsSinceOptions, allowFr
 						  Posts
 					  WHERE
 						  UpdateAt > ?
-							  AND ChannelId = ?
-					  LIMIT 1000) temp_tab))
+							  AND ChannelId = ?) temp_tab))
 			) j ON p1.Id = j.Id
-          ORDER BY CreateAt ` + order
+			ORDER BY CreateAt ` + order + ` LIMIT ? OFFSET ?`
 
-		params = []any{options.Time, options.ChannelId, options.Time, options.ChannelId}
+		params = []any{options.Time, options.ChannelId, options.Time, options.ChannelId, options.PerPage, offset}
 	} else if s.DriverName() == model.DatabaseDriverPostgres {
 		query = `WITH cte AS (SELECT
 		       *
 		FROM
 		       Posts
 		WHERE
-		       UpdateAt > ? AND ChannelId = ?
-		       LIMIT 1000)
+		       UpdateAt > ? AND ChannelId = ?)
 		(SELECT *` + replyCountQuery2 + ` FROM cte)
 		UNION
 		(SELECT *` + replyCountQuery1 + ` FROM Posts p1 WHERE id in (SELECT rootid FROM cte))
-		ORDER BY CreateAt ` + order
+		ORDER BY CreateAt ` + order + ` LIMIT ? OFFSET ?`
 
-		params = []any{options.Time, options.ChannelId}
+		params = []any{options.Time, options.ChannelId, options.PerPage, offset}
 	}
 	err := s.GetReplicaX().Select(&posts, query, params...)
 	if err != nil {
