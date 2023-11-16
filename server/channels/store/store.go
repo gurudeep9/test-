@@ -254,7 +254,7 @@ type ChannelStore interface {
 	GetPinnedPostCount(channelID string, allowFromCache bool) (int64, error)
 	InvalidateGuestCount(channelID string)
 	GetGuestCount(channelID string, allowFromCache bool) (int64, error)
-	GetPinnedPosts(channelID string) (*model.PostList, error)
+	GetPinnedPosts(channelID string, userID string) (*model.PostList, error)
 	RemoveMember(channelID string, userID string) error
 	RemoveMembers(channelID string, userIds []string) error
 	PermanentDeleteMembersByUser(userID string) error
@@ -406,6 +406,7 @@ type PostStore interface {
 	SetPostReminder(reminder *model.PostReminder) error
 	GetPostReminders(now int64) ([]*model.PostReminder, error)
 	GetPostReminderMetadata(postID string) (*PostReminderMetadata, error)
+	PrepareThreadedResponse(posts []*model.PostWithCRTMetadata, extended, reversed bool, sanitizeOptions map[string]bool) (*model.PostList, error)
 	// GetNthRecentPostTime returns the CreateAt time of the nth most recent post.
 	GetNthRecentPostTime(n int64) (int64, error)
 }

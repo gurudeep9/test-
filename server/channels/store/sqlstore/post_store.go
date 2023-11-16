@@ -34,13 +34,6 @@ type SqlPostStore struct {
 	maxPostSizeCached int
 }
 
-type postWithExtra struct {
-	ThreadReplyCount   int64
-	IsFollowing        *bool
-	ThreadParticipants model.StringArray
-	model.Post
-}
-
 func (s *SqlPostStore) ClearCaches() {
 }
 
@@ -472,90 +465,79 @@ func (s *SqlPostStore) GetFlaggedPostsForChannel(userId, channelId string, offse
 	return s.getFlaggedPosts(userId, channelId, "", offset, limit)
 }
 
-// TODO: convert to squirrel HW
 func (s *SqlPostStore) getFlaggedPosts(userId, channelId, teamId string, offset int, limit int) (*model.PostList, error) {
-	pl := model.NewPostList()
+	sb := s.getSubQueryBuilder().Select("Name").From("Preferences").
+		Where(sq.Eq{
+			"UserId":   userId,
+			"Category": model.PreferenceCategoryFlaggedPost,
+		})
 
-	posts := []*model.Post{}
-	query := `
-            SELECT
-                A.*, (SELECT count(*) FROM Posts WHERE Posts.RootId = (CASE WHEN A.RootId = '' THEN A.Id ELSE A.RootId END) AND Posts.DeleteAt = 0) as ReplyCount
-            FROM
-                (SELECT
-                    *
-                FROM
-                    Posts
-                WHERE
-                    Id
-                IN
-                    (
-						SELECT
-							Name
-						FROM
-							Preferences
-						WHERE
-							UserId = ?
-							AND Category = ?
-					)
-					CHANNEL_FILTER
-					AND Posts.DeleteAt = 0
-                ) as A
-            INNER JOIN Channels as B
-                ON B.Id = A.ChannelId
-			WHERE
-				ChannelId IN (
-					SELECT
-						Id
-					FROM
-						Channels,
-						ChannelMembers
-					WHERE
-						Id = ChannelId
-						AND UserId = ?
-				)
-				TEAM_FILTER
-            ORDER BY CreateAt DESC
-            LIMIT ? OFFSET ?`
+	subQuery, subQueryArgs, err := sb.ToSql()
+	if err != nil {
+		return nil, err
+	}
 
-	queryParams := []any{userId, model.PreferenceCategoryFlaggedPost}
+	sb = s.getSubQueryBuilder().Select("*").From("Posts").
+		Where(sq.Eq{"Posts.DeleteAt": 0}).
+		Where("Id IN ("+subQuery+")", subQueryArgs...)
+	sb = s.buildFlaggedPostChannelFilterClause(channelId, sb)
 
-	var channelClause, teamClause string
-	channelClause, queryParams = s.buildFlaggedPostChannelFilterClause(channelId, queryParams)
-	query = strings.Replace(query, "CHANNEL_FILTER", channelClause, 1)
+	builder := s.getQueryBuilder().Select(
+		"A.*",
+		"COALESCE(Threads.ReplyCount, 0) as ThreadReplyCount",
+		"COALESCE(Threads.LastReplyAt, 0) as LastReplyAt",
+		"COALESCE(Threads.Participants, '[]') as ThreadParticipants",
+		"ThreadMemberships.Following as IsFollowing",
+	).FromSelect(sb, "A").
+		InnerJoin("Channels as B ON B.Id = A.ChannelId").
+		LeftJoin("Threads ON Threads.PostId = A.Id").
+		LeftJoin("ThreadMemberships ON ThreadMemberships.PostId = A.Id AND ThreadMemberships.UserId = ?", userId).
+		OrderBy("A.CreateAt DESC").
+		Limit(uint64(limit)).
+		Offset(uint64(offset))
 
-	queryParams = append(queryParams, userId)
+	sb = s.getSubQueryBuilder().Select("Id").
+		From("Channels").
+		InnerJoin("ChannelMembers ON Id = ChannelId AND UserId = ?", userId)
 
-	teamClause, queryParams = s.buildFlaggedPostTeamFilterClause(teamId, queryParams)
-	query = strings.Replace(query, "TEAM_FILTER", teamClause, 1)
+	subQuery, subQueryArgs, err = sb.ToSql()
+	if err != nil {
+		return nil, err
+	}
 
-	queryParams = append(queryParams, limit, offset)
+	builder = builder.Where("A.ChannelId IN ("+subQuery+")", subQueryArgs...)
+	builder = s.buildFlaggedPostTeamFilterClause(teamId, builder)
 
-	if err := s.GetReplicaX().Select(&posts, query, queryParams...); err != nil {
+	query, queryArgs, err := builder.ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	var posts []*model.PostWithCRTMetadata
+	if err := s.GetReplicaX().Select(&posts, query, queryArgs...); err != nil {
 		return nil, errors.Wrap(err, "failed to find Posts")
 	}
 
-	for _, post := range posts {
-		pl.AddPost(post)
-		pl.AddOrder(post.Id)
-	}
-
-	return pl, nil
+	return s.PrepareThreadedResponse(posts, true, false, map[string]bool{})
 }
 
-func (s *SqlPostStore) buildFlaggedPostTeamFilterClause(teamId string, queryParams []any) (string, []any) {
+func (s *SqlPostStore) buildFlaggedPostTeamFilterClause(teamId string, builder sq.SelectBuilder) sq.SelectBuilder {
 	if teamId == "" {
-		return "", queryParams
+		return builder
 	}
 
-	return "AND B.TeamId = ? OR B.TeamId = ''", append(queryParams, teamId)
+	return builder.Where(sq.Or{
+		sq.Eq{"B.TeamId": teamId},
+		sq.Eq{"B.TeamId": ""},
+	})
 }
 
-func (s *SqlPostStore) buildFlaggedPostChannelFilterClause(channelId string, queryParams []any) (string, []any) {
+func (s *SqlPostStore) buildFlaggedPostChannelFilterClause(channelId string, builder sq.SelectBuilder) sq.SelectBuilder {
 	if channelId == "" {
-		return "", queryParams
+		return builder
 	}
 
-	return "AND ChannelId = ?", append(queryParams, channelId)
+	return builder.Where(sq.Eq{"Posts.ChannelId": channelId})
 }
 
 func (s *SqlPostStore) getPostWithCollapsedThreads(id, userID string, opts model.GetPostsOptions, sanitizeOptions map[string]bool) (*model.PostList, error) {
@@ -573,7 +555,7 @@ func (s *SqlPostStore) getPostWithCollapsedThreads(id, userID string, opts model
 		"COALESCE(Threads.Participants, '[]') as ThreadParticipants",
 		"ThreadMemberships.Following as IsFollowing",
 	)
-	var post postWithExtra
+	var post model.PostWithCRTMetadata
 
 	postFetchQuery, args, err := s.getQueryBuilder().
 		Select(columns...).
@@ -670,7 +652,7 @@ func (s *SqlPostStore) getPostWithCollapsedThreads(id, userID string, opts model
 		posts = posts[:len(posts)-1]
 	}
 
-	list, err := s.prepareThreadedResponse([]*postWithExtra{&post}, opts.CollapsedThreadsExtended, false, sanitizeOptions)
+	list, err := s.PrepareThreadedResponse([]*model.PostWithCRTMetadata{&post}, opts.CollapsedThreadsExtended, false, sanitizeOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -1100,7 +1082,7 @@ func (s *SqlPostStore) PermanentDeleteByChannel(channelId string) (err error) {
 	return nil
 }
 
-func (s *SqlPostStore) prepareThreadedResponse(posts []*postWithExtra, extended, reversed bool, sanitizeOptions map[string]bool) (*model.PostList, error) {
+func (s *SqlPostStore) PrepareThreadedResponse(posts []*model.PostWithCRTMetadata, extended, reversed bool, sanitizeOptions map[string]bool) (*model.PostList, error) {
 	list := model.NewPostList()
 	var userIds []string
 	userIdMap := map[string]bool{}
@@ -1129,7 +1111,7 @@ func (s *SqlPostStore) prepareThreadedResponse(posts []*postWithExtra, extended,
 		}
 	}
 
-	processPost := func(p *postWithExtra) error {
+	processPost := func(p *model.PostWithCRTMetadata) error {
 		p.Post.ReplyCount = p.ThreadReplyCount
 		if p.IsFollowing != nil {
 			p.Post.IsFollowing = model.NewBool(*p.IsFollowing)
@@ -1174,7 +1156,7 @@ func (s *SqlPostStore) getPostsCollapsedThreads(options model.GetPostsOptions, s
 		"COALESCE(Threads.Participants, '[]') as ThreadParticipants",
 		"ThreadMemberships.Following as IsFollowing",
 	)
-	var posts []*postWithExtra
+	var posts []*model.PostWithCRTMetadata
 	offset := options.PerPage * options.Page
 
 	postFetchQuery, args, _ := s.getQueryBuilder().
@@ -1194,7 +1176,7 @@ func (s *SqlPostStore) getPostsCollapsedThreads(options model.GetPostsOptions, s
 		return nil, errors.Wrapf(err, "failed to find Posts with channelId=%s", options.ChannelId)
 	}
 
-	return s.prepareThreadedResponse(posts, options.CollapsedThreadsExtended, false, sanitizeOptions)
+	return s.PrepareThreadedResponse(posts, options.CollapsedThreadsExtended, false, sanitizeOptions)
 }
 
 func (s *SqlPostStore) GetPosts(options model.GetPostsOptions, _ bool, sanitizeOptions map[string]bool) (*model.PostList, error) {
@@ -1259,7 +1241,7 @@ func (s *SqlPostStore) getPostsSinceCollapsedThreads(options model.GetPostsSince
 		"COALESCE(Threads.Participants, '[]') as ThreadParticipants",
 		"ThreadMemberships.Following as IsFollowing",
 	)
-	var posts []*postWithExtra
+	var posts []*model.PostWithCRTMetadata
 
 	postFetchQuery, args, err := s.getQueryBuilder().
 		Select(columns...).
@@ -1281,7 +1263,7 @@ func (s *SqlPostStore) getPostsSinceCollapsedThreads(options model.GetPostsSince
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to find Posts with channelId=%s", options.ChannelId)
 	}
-	return s.prepareThreadedResponse(posts, options.CollapsedThreadsExtended, false, sanitizeOptions)
+	return s.PrepareThreadedResponse(posts, options.CollapsedThreadsExtended, false, sanitizeOptions)
 }
 
 //nolint:unparam
@@ -1467,7 +1449,7 @@ func (s *SqlPostStore) getPostsAround(before bool, options model.GetPostsOptions
 	}
 
 	offset := options.Page * options.PerPage
-	posts := []*postWithExtra{}
+	posts := []*model.PostWithCRTMetadata{}
 	parents := []*model.Post{}
 
 	var direction string
@@ -1571,7 +1553,7 @@ func (s *SqlPostStore) getPostsAround(before bool, options model.GetPostsOptions
 		}
 	}
 
-	list, err := s.prepareThreadedResponse(posts, options.CollapsedThreadsExtended, !before, sanitizeOptions)
+	list, err := s.PrepareThreadedResponse(posts, options.CollapsedThreadsExtended, !before, sanitizeOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -1868,35 +1850,35 @@ func (s *SqlPostStore) buildCreateDateFilterClause(params *model.SearchParams, b
 	if params.OnDate != "" {
 		onDateStart, onDateEnd := params.GetOnDateMillis()
 		// between `on date` start of day and end of day
-		builder = builder.Where("CreateAt BETWEEN ? AND ?", onDateStart, onDateEnd)
+		builder = builder.Where("q2.CreateAt BETWEEN ? AND ?", onDateStart, onDateEnd)
 		return builder
 	}
 
 	if params.ExcludedDate != "" {
 		excludedDateStart, excludedDateEnd := params.GetExcludedDateMillis()
-		builder = builder.Where("CreateAt NOT BETWEEN ? AND ?", excludedDateStart, excludedDateEnd)
+		builder = builder.Where("q2.CreateAt NOT BETWEEN ? AND ?", excludedDateStart, excludedDateEnd)
 	}
 
 	if params.AfterDate != "" {
 		afterDate := params.GetAfterDateMillis()
 		// greater than `after date`
-		builder = builder.Where("CreateAt >= ?", afterDate)
+		builder = builder.Where("q2.CreateAt >= ?", afterDate)
 	}
 
 	if params.BeforeDate != "" {
 		beforeDate := params.GetBeforeDateMillis()
 		// less than `before date`
-		builder = builder.Where("CreateAt <= ?", beforeDate)
+		builder = builder.Where("q2.CreateAt <= ?", beforeDate)
 	}
 
 	if params.ExcludedAfterDate != "" {
 		afterDate := params.GetExcludedAfterDateMillis()
-		builder = builder.Where("CreateAt < ?", afterDate)
+		builder = builder.Where("q2.CreateAt < ?", afterDate)
 	}
 
 	if params.ExcludedBeforeDate != "" {
 		beforeDate := params.GetExcludedBeforeDateMillis()
-		builder = builder.Where("CreateAt > ?", beforeDate)
+		builder = builder.Where("q2.CreateAt > ?", beforeDate)
 	}
 
 	return builder
@@ -1971,7 +1953,7 @@ func (s *SqlPostStore) buildSearchPostFilterClause(teamID string, fromUsers []st
 	 * Squirrel does not support a sub-query in the WHERE condition.
 	 * https://github.com/Masterminds/squirrel/issues/299
 	 */
-	return builder.Where("UserId IN ("+subQuery+")", subQueryArgs...), nil
+	return builder.Where("q2.UserId IN ("+subQuery+")", subQueryArgs...), nil
 }
 
 func (s *SqlPostStore) Search(teamId string, userId string, params *model.SearchParams) (*model.PostList, error) {
@@ -1988,9 +1970,14 @@ func (s *SqlPostStore) search(teamId string, userId string, params *model.Search
 	}
 
 	baseQuery := s.getQueryBuilder().Select(
-		"*",
-		"(SELECT COUNT(*) FROM Posts WHERE Posts.RootId = (CASE WHEN q2.RootId = '' THEN q2.Id ELSE q2.RootId END) AND Posts.DeleteAt = 0) as ReplyCount",
+		"q2.*",
+		"COALESCE(Threads.ReplyCount, 0) as ThreadReplyCount",
+		"COALESCE(Threads.LastReplyAt, 0) as LastReplyAt",
+		"COALESCE(Threads.Participants, '[]') as ThreadParticipants",
+		"ThreadMemberships.Following as IsFollowing",
 	).From("Posts q2").
+		LeftJoin("Threads ON Threads.PostId = q2.Id").
+		LeftJoin("ThreadMemberships ON ThreadMemberships.PostId = q2.Id AND ThreadMemberships.UserId = ?", userId).
 		Where("q2.DeleteAt = 0").
 		Where(fmt.Sprintf("q2.Type NOT LIKE '%s%%'", model.PostSystemMessagePrefix)).
 		OrderByClause("q2.CreateAt DESC").
@@ -2122,19 +2109,21 @@ func (s *SqlPostStore) search(teamId string, userId string, params *model.Search
 		return nil, err
 	}
 
-	baseQuery = baseQuery.Where(fmt.Sprintf("ChannelId IN (%s)", inQueryClause), inQueryClauseArgs...)
+	baseQuery = baseQuery.Where(fmt.Sprintf("q2.ChannelId IN (%s)", inQueryClause), inQueryClauseArgs...)
 
 	searchQuery, searchQueryArgs, err := baseQuery.ToSql()
 	if err != nil {
 		return nil, err
 	}
 
-	var posts []*model.Post
+	var posts []*model.PostWithCRTMetadata
 
 	if err := s.GetSearchReplicaX().Select(&posts, searchQuery, searchQueryArgs...); err != nil {
 		mlog.Warn("Query error searching posts.", mlog.String("error", trimInput(err.Error())))
 		// Don't return the error to the caller as it is of no use to the user. Instead return an empty set of search results.
 	} else {
+		// in-place filter posts
+		validIdx := 0
 		for _, p := range posts {
 			if searchType == "Hashtags" {
 				exactMatch := false
@@ -2148,8 +2137,12 @@ func (s *SqlPostStore) search(teamId string, userId string, params *model.Search
 					continue
 				}
 			}
-			list.AddPost(p)
-			list.AddOrder(p.Id)
+			posts[validIdx] = p
+			validIdx++
+		}
+		posts = posts[:validIdx]
+		if list, err = s.PrepareThreadedResponse(posts, true, false, map[string]bool{}); err != nil {
+			return nil, err
 		}
 	}
 	list.MakeNonNil()

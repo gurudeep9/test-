@@ -827,18 +827,34 @@ func (s SqlChannelStore) InvalidateChannelByName(teamId, name string) {
 	}
 }
 
-func (s SqlChannelStore) GetPinnedPosts(channelId string) (*model.PostList, error) {
-	pl := model.NewPostList()
+func (s SqlChannelStore) GetPinnedPosts(channelId string, userID string) (*model.PostList, error) {
+	builder := s.getQueryBuilder().Select(
+		"p.*",
+		"COALESCE(Threads.ReplyCount, 0) as ThreadReplyCount",
+		"COALESCE(Threads.LastReplyAt, 0) as LastReplyAt",
+		"COALESCE(Threads.Participants, '[]') as ThreadParticipants",
+		"ThreadMemberships.Following as IsFollowing",
+	).From("Posts p").
+		LeftJoin("Threads ON Threads.PostId = p.Id").
+		LeftJoin("ThreadMemberships ON ThreadMemberships.PostId = p.Id AND ThreadMemberships.UserId = ?", userID).
+		Where(sq.Eq{
+			"p.IsPinned":  true,
+			"p.ChannelId": channelId,
+			"p.DeleteAt":  0,
+		}).
+		OrderBy("p.CreateAt ASC")
 
-	posts := []*model.Post{}
-	if err := s.GetReplicaX().Select(&posts, "SELECT *, (SELECT count(Posts.Id) FROM Posts WHERE Posts.RootId = (CASE WHEN p.RootId = '' THEN p.Id ELSE p.RootId END) AND Posts.DeleteAt = 0) as ReplyCount  FROM Posts p WHERE IsPinned = true AND ChannelId = ? AND DeleteAt = 0 ORDER BY CreateAt ASC", channelId); err != nil {
+	query, queryArgs, err := builder.ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	posts := []*model.PostWithCRTMetadata{}
+	if err := s.GetReplicaX().Select(&posts, query, queryArgs...); err != nil {
 		return nil, errors.Wrap(err, "failed to find Posts")
 	}
-	for _, post := range posts {
-		pl.AddPost(post)
-		pl.AddOrder(post.Id)
-	}
-	return pl, nil
+
+	return s.Post().PrepareThreadedResponse(posts, true, false, map[string]bool{})
 }
 
 //nolint:unparam

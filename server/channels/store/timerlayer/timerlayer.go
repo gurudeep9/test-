@@ -1595,10 +1595,10 @@ func (s *TimerLayerChannelStore) GetPinnedPostCount(channelID string, allowFromC
 	return result, err
 }
 
-func (s *TimerLayerChannelStore) GetPinnedPosts(channelID string) (*model.PostList, error) {
+func (s *TimerLayerChannelStore) GetPinnedPosts(channelID string, userID string) (*model.PostList, error) {
 	start := time.Now()
 
-	result, err := s.ChannelStore.GetPinnedPosts(channelID)
+	result, err := s.ChannelStore.GetPinnedPosts(channelID, userID)
 
 	elapsed := float64(time.Since(start)) / float64(time.Second)
 	if s.Root.Metrics != nil {
@@ -6029,6 +6029,22 @@ func (s *TimerLayerPostStore) PermanentDeleteByUser(userID string) error {
 		s.Root.Metrics.ObserveStoreMethodDuration("PostStore.PermanentDeleteByUser", success, elapsed)
 	}
 	return err
+}
+
+func (s *TimerLayerPostStore) PrepareThreadedResponse(posts []*model.PostWithCRTMetadata, extended bool, reversed bool, sanitizeOptions map[string]bool) (*model.PostList, error) {
+	start := time.Now()
+
+	result, err := s.PostStore.PrepareThreadedResponse(posts, extended, reversed, sanitizeOptions)
+
+	elapsed := float64(time.Since(start)) / float64(time.Second)
+	if s.Root.Metrics != nil {
+		success := "false"
+		if err == nil {
+			success = "true"
+		}
+		s.Root.Metrics.ObserveStoreMethodDuration("PostStore.PrepareThreadedResponse", success, elapsed)
+	}
+	return result, err
 }
 
 func (s *TimerLayerPostStore) Save(post *model.Post) (*model.Post, error) {
