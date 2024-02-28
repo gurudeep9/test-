@@ -51,6 +51,7 @@ type FeatureFlags struct {
 
 	CloudAnnualRenewals bool
 	WebSocketEventScope bool
+	UserSettingsModalRevamp bool
 }
 
 func (f *FeatureFlags) SetDefaults() {
@@ -71,6 +72,7 @@ func (f *FeatureFlags) SetDefaults() {
 	f.ConsumePostHook = false
 	f.CloudAnnualRenewals = false
 	f.WebSocketEventScope = false
+	f.UserSettingsModalRevamp = false
 }
 
 // ToMap returns the feature flags as a map[string]string
