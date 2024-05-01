@@ -71,6 +71,7 @@ describe('components/integrations/InstalledIncomingWebhook', () => {
                     creator_id: 'id',
                     scheme_id: 'id',
                     group_constrained: false,
+                    exclude_post_types: [],
                 }}
             />,
         );
@@ -120,6 +121,7 @@ describe('components/integrations/InstalledIncomingWebhook', () => {
                     creator_id: 'id',
                     scheme_id: 'id',
                     group_constrained: false,
+                    exclude_post_types: [],
                 }}
             />,
         );
@@ -169,6 +171,7 @@ describe('components/integrations/InstalledIncomingWebhook', () => {
                     creator_id: 'id',
                     scheme_id: 'id',
                     group_constrained: false,
+                    exclude_post_types: [],
                 }}
             />,
         );
@@ -219,6 +222,7 @@ describe('components/integrations/InstalledIncomingWebhook', () => {
                     creator_id: 'id',
                     scheme_id: 'id',
                     group_constrained: false,
+                    exclude_post_types: [],
                 }}
             />,
         );
@@ -270,6 +274,7 @@ describe('components/integrations/InstalledIncomingWebhook', () => {
                     creator_id: 'id',
                     scheme_id: 'id',
                     group_constrained: false,
+                    exclude_post_types: [],
                 }}
             />,
         );
@@ -319,6 +324,7 @@ describe('components/integrations/InstalledIncomingWebhook', () => {
                     creator_id: 'id',
                     scheme_id: 'id',
                     group_constrained: false,
+                    exclude_post_types: [],
                 }}
             />,
         );
@@ -368,6 +374,7 @@ describe('components/integrations/InstalledIncomingWebhook', () => {
                     creator_id: 'id',
                     scheme_id: 'id',
                     group_constrained: false,
+                    exclude_post_types: [],
                 }}
             />,
         );

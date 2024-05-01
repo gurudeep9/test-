@@ -31,6 +31,7 @@ describe('components/ChannelMembersModal', () => {
             creator_id: '',
             scheme_id: '',
             group_constrained: false,
+            exclude_post_types: [],
         },
         canManageChannelMembers: true,
         onExited: jest.fn(),

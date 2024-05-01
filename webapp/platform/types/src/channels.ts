@@ -53,6 +53,7 @@ export type Channel = {
     shared?: boolean;
     props?: Record<string, any>;
     policy_id?: string | null;
+    exclude_post_types: string[];
 };
 
 export type ServerChannel = Channel & {

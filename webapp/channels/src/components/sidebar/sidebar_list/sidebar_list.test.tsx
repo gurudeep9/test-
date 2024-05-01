@@ -6,7 +6,7 @@ import React from 'react';
 import type {MovementMode, DropResult} from 'react-beautiful-dnd';
 
 import {CategorySorting} from '@mattermost/types/channel_categories';
-import type {ChannelType} from '@mattermost/types/channels';
+import type {ChannelType, Channel} from '@mattermost/types/channels';
 import type {TeamType} from '@mattermost/types/teams';
 
 import {CategoryTypes} from 'mattermost-redux/constants/channel_categories';
@@ -35,7 +35,7 @@ describe('SidebarList', () => {
         group_constrained: false,
     });
 
-    const unreadChannel = {
+    const unreadChannel: Channel = {
         id: 'channel_id_2',
         display_name: 'channel_display_name_2',
         create_at: 0,
@@ -51,6 +51,7 @@ describe('SidebarList', () => {
         creator_id: '',
         scheme_id: '',
         group_constrained: false,
+        exclude_post_types: [],
     };
 
     const baseProps = {

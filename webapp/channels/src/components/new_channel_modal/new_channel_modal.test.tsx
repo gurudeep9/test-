@@ -450,6 +450,7 @@ describe('components/new_channel_modal', () => {
             team_id: 'current_team_id',
             type: 'O',
             update_at: 0,
+            exclude_post_types: [],
         }, '');
     });
 });

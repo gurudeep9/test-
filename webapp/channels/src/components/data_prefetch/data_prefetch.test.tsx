@@ -51,6 +51,7 @@ describe('/components/data_prefetch', () => {
             group_constrained: false,
             last_post_at: 1234,
             last_root_post_at: 1234,
+            exclude_post_types: [],
         }), TestHelper.getChannelMock({
             id: 'unreadChannel',
             display_name: 'unreadChannel',
@@ -67,6 +68,7 @@ describe('/components/data_prefetch', () => {
             group_constrained: false,
             last_post_at: 1235,
             last_root_post_at: 1235,
+            exclude_post_types: [],
         })],
     };
 
@@ -276,6 +278,7 @@ describe('/components/data_prefetch', () => {
                 group_constrained: false,
                 last_post_at: 12345,
                 last_root_post_at: 12345,
+                exclude_post_types: [],
             }],
         };
         const wrapper = shallow(
@@ -323,6 +326,7 @@ describe('/components/data_prefetch', () => {
                 group_constrained: false,
                 last_post_at: 12345,
                 last_root_post_at: 12345,
+                exclude_post_types: [],
             }],
         };
         const wrapper = shallow<DataPrefetch>(

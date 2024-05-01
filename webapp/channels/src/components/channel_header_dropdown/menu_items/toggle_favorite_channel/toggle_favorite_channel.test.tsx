@@ -28,6 +28,7 @@ describe('components/ChannelHeaderDropdown/MenuItem.ToggleFavoriteChannel', () =
             creator_id: '',
             scheme_id: '',
             group_constrained: false,
+            exclude_post_types: [],
         },
         actions: {
             favoriteChannel: jest.fn(),

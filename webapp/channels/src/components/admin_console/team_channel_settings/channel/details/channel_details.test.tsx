@@ -49,6 +49,7 @@ describe('admin_console/team_channel_settings/channel/ChannelDetails', () => {
             creator_id: 'id',
             scheme_id: 'id',
             group_constrained: false,
+            exclude_post_types: [],
         };
         const team = TestHelper.getTeamMock({
             display_name: 'test',
@@ -173,6 +174,7 @@ describe('admin_console/team_channel_settings/channel/ChannelDetails', () => {
             creator_id: 'id',
             scheme_id: 'id',
             group_constrained: false,
+            exclude_post_types: [],
         };
         const team = TestHelper.getTeamMock({
             display_name: 'test',
@@ -298,6 +300,7 @@ describe('admin_console/team_channel_settings/channel/ChannelDetails', () => {
             creator_id: 'id',
             scheme_id: 'id',
             group_constrained: false,
+            exclude_post_types: [],
         };
         const team = TestHelper.getTeamMock({
             display_name: 'test',
