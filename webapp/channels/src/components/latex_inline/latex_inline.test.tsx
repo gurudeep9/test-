@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import { shallow } from 'enzyme';
+import {shallow} from 'enzyme';
 import React from 'react';
 
 import LatexInline from 'components/latex_inline/latex_inline';
@@ -13,7 +13,7 @@ describe('components/LatexInline', () => {
     };
 
     test('should match snapshot', async () => {
-        const wrapper = shallow(<LatexInline {...defaultProps} />);
+        const wrapper = shallow(<LatexInline {...defaultProps}/>);
         expect(wrapper).toMatchSnapshot();
     });
 
@@ -23,7 +23,7 @@ describe('components/LatexInline', () => {
             enableInlineLatex: false,
         };
 
-        const wrapper = shallow(<LatexInline {...props} />);
+        const wrapper = shallow(<LatexInline {...props}/>);
         expect(wrapper).toMatchSnapshot();
     });
 
@@ -33,7 +33,7 @@ describe('components/LatexInline', () => {
             enableInlineLatex: true,
         };
 
-        const wrapper = shallow(<LatexInline {...props} />);
+        const wrapper = shallow(<LatexInline {...props}/>);
         expect(wrapper).toMatchSnapshot();
     });
 });
