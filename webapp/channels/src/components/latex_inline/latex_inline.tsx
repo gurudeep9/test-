@@ -1,10 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-
-import type { KatexOptions } from 'katex';
-import React, { useEffect, useState } from 'react';
-import { FormattedMessage } from 'react-intl';
+import type {KatexOptions} from 'katex';
+import React, {useEffect, useState} from 'react';
+import {FormattedMessage} from 'react-intl';
 
 type Katex = typeof import('katex');
 
@@ -13,9 +12,9 @@ type Props = {
     enableInlineLatex: boolean;
 };
 
-const LatexInline = ({ 
-    content, 
-    enableInlineLatex 
+const LatexInline = ({
+    content,
+    enableInlineLatex,
 }: Props) => {
     const [katex, setKatex] = useState<Katex | undefined>(undefined);
 
@@ -49,7 +48,7 @@ const LatexInline = ({
         return (
             <span
                 className='post-body--code inline-tex'
-                dangerouslySetInnerHTML={{ __html: html }}
+                dangerouslySetInnerHTML={{__html: html}}
             />
         );
     } catch (e) {
@@ -64,7 +63,6 @@ const LatexInline = ({
             </span>
         );
     }
-
-}
+};
 
 export default React.memo(LatexInline);
