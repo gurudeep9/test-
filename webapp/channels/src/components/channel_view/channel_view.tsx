@@ -13,6 +13,10 @@ import FormattedMarkdownMessage from 'components/formatted_markdown_message';
 import PostView from 'components/post_view';
 
 import WebSocketClient from 'client/web_websocket_client';
+import Pluggable from 'plugins/pluggable';
+import RawPluggable from 'plugins/pluggable/pluggable';
+
+import type {PluginComponent} from 'types/store/plugins';
 
 import type {PropsFromRedux} from './index';
 
@@ -165,6 +169,38 @@ export default class ChannelView extends React.PureComponent<Props, State> {
         }
 
         const DeferredPostView = this.state.deferredPostView;
+        const tab = this.props.tabContent;
+        const pluginContent = this.props.channelContentPlugin;
+
+        let content = (<>
+            <DeferredPostView
+                channelId={this.props.channelId}
+                focusedPostId={this.state.focusedPostId}
+            />
+            {createPost}
+        </>);
+
+        if (tab) {
+            content = (
+                <Pluggable
+                    pluggableName='ChannelTabContentComponent'
+                    pluggableId={tab.channelContentId}
+                    channelId={this.props.channelId}
+                    {...tab.props}
+                />
+            );
+        } else if (pluginContent) {
+            content = (
+                <RawPluggable
+                    theme={this.props.theme}
+                    pluggableName='ChannelContentComponent'
+                    components={{ChannelContentComponent: [pluginContent as PluginComponent]}}
+                    pluggableId={pluginContent.id}
+                    channelId={this.props.channelId}
+                    {...pluginContent.props}
+                />
+            );
+        }
 
         return (
             <div
@@ -176,11 +212,7 @@ export default class ChannelView extends React.PureComponent<Props, State> {
                 <ChannelHeader
                     {...this.props}
                 />
-                <DeferredPostView
-                    channelId={this.props.channelId}
-                    focusedPostId={this.state.focusedPostId}
-                />
-                {createPost}
+                {content}
             </div>
         );
     }

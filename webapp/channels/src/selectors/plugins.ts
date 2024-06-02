@@ -10,7 +10,7 @@ import {get} from 'mattermost-redux/selectors/entities/preferences';
 import {createShallowSelector} from 'mattermost-redux/utils/helpers';
 
 import type {GlobalState} from 'types/store';
-import type {FileDropdownPluginComponent, PluginComponent} from 'types/store/plugins';
+import type {ChannelTabButtonItem, FileDropdownPluginComponent, LeftHandSidebarItem, PluginComponent} from 'types/store/plugins';
 
 export const getPluginUserSettings = createSelector(
     'getPluginUserSettings',
@@ -76,6 +76,14 @@ export const getChannelHeaderMenuPluginComponents = createShallowSelector(
     },
 );
 
+export const getLeftHandSidebarItemPluginComponents = createSelector(
+    'getLeftHandSidebarItemPluginComponents',
+    (state: GlobalState) => state.plugins.components.LeftHandSidebarItem,
+    (components) => {
+        return (components || []) as unknown as LeftHandSidebarItem[];
+    },
+);
+
 export const getChannelIntroPluginButtons = createSelector(
     'getChannelIntroPluginButtons',
     (state: GlobalState) => state.plugins.components.ChannelIntroButton,
@@ -89,6 +97,44 @@ export const getAppBarPluginComponents = createSelector(
     (state: GlobalState) => state.plugins.components.AppBar,
     (components = []) => {
         return components;
+    },
+);
+
+export const getChannelTabPluginComponents = createSelector(
+    'getChannelTabPluginComponents',
+    (state: GlobalState) => state.plugins.components.ChannelTabButton,
+    (components = []) => {
+        return (components || []) as unknown as ChannelTabButtonItem[];
+    },
+);
+
+export const getChannelTabPluginComponent = createSelector(
+    'getChannelTabPluginComponent',
+    getChannelTabPluginComponents,
+    (_: GlobalState, id: string) => id,
+    (components = [], id) => {
+        return components.find((c) => c.id === id);
+    },
+);
+
+export const getChannelTabPluginComponentsForChannel = createSelector(
+    'getChannelTabPluginComponentsForChannel',
+    getChannelTabPluginComponents,
+    (_: GlobalState, channelId: string) => channelId,
+    (tabButtons = [], channelId) => {
+        return tabButtons.filter((t) => t.channelId === channelId);
+    },
+);
+
+export const getChannelContentPluginComponents = createSelector(
+    'getChannelContentPluginComponents',
+    (state: GlobalState) => state.plugins.components.ChannelTabContentComponent,
+    (components = []) => {
+        const byId: Record<string, PluginComponent> = {};
+        components.forEach((c) => {
+            byId[c.id] = c;
+        });
+        return byId;
     },
 );
 

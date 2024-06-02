@@ -42,8 +42,15 @@ export type PluginsState = {
         UserGuideDropdownItem: PluginComponent[];
         FilesWillUploadHook: PluginComponent[];
         NeedsTeamComponent: NeedsTeamComponent[];
+        NeedsChannelSidebarComponent: NeedsChannelSidebarComponent[];
         CreateBoardFromTemplate: PluginComponent[];
         DesktopNotificationHooks: DesktopNotificationHook[];
+        ChannelTabButton: PluginComponent[];
+        ChannelTabContentComponent: PluginComponent[];
+    };
+
+    channelContent: {
+        [channelId: string]: ChannelContentPluginComponent;
     };
 
     postTypes: {
@@ -104,6 +111,10 @@ export type PluginComponent = {
     action?: (...args: any) => void; // TODO Add more concrete types?
     shouldRender?: (state: GlobalState) => boolean;
     hook?: (post: Post, message?: string) => string;
+    route?: string;
+    channelId?: string;
+    channelContentId?: string;
+    props?: {[name: string]: any};
 };
 
 export type AppBarComponent = PluginComponent & {
@@ -111,6 +122,10 @@ export type AppBarComponent = PluginComponent & {
 }
 
 export type NeedsTeamComponent = PluginComponent & {
+    route: string;
+}
+
+export type NeedsChannelSidebarComponent = PluginComponent & {
     route: string;
 }
 
@@ -140,6 +155,16 @@ export type PostPluginComponent = {
     component: React.ElementType;
 };
 
+export type ChannelContentPluginComponent = {
+    id: string;
+    pluginId: string;
+    channelId: string;
+    component: React.ElementType;
+    tabText: string | React.ReactElement;
+    lhsIcon: string | React.ReactElement;
+    props?: {[name: string]: any};
+};
+
 export type AdminConsolePluginComponent = {
     pluginId: string;
     key: string;
@@ -156,6 +181,23 @@ export type PostWillRenderEmbedPluginComponent = {
     match: (arg: PostEmbed) => boolean;
     toggleable: boolean;
 }
+
+export type LeftHandSidebarItem = {
+    id: string;
+    pluginId: string;
+    text: string | React.ReactElement;
+    route: string;
+};
+
+export type ChannelTabButtonItem = {
+    id: string;
+    pluginId: string;
+    text: string | React.ReactElement;
+    icon: string | React.ReactElement;
+    channelId: string;
+    channelContentId: string;
+    props?: {[name: string]: any};
+};
 
 export type ProductComponent = {
 

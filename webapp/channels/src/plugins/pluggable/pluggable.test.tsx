@@ -38,8 +38,11 @@ describe('plugins/Pluggable', () => {
             UserGuideDropdownItem: [],
             FilesWillUploadHook: [],
             NeedsTeamComponent: [],
+            NeedsChannelSidebarComponent: [],
             CreateBoardFromTemplate: [],
             DesktopNotificationHooks: [],
+            ChannelTabButton: [],
+            ChannelTabContentComponent: [],
         },
         theme: Preferences.THEMES.denim,
     };

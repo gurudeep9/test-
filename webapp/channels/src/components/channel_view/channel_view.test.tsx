@@ -4,6 +4,8 @@
 import {shallow} from 'enzyme';
 import React from 'react';
 
+import type {Theme} from 'mattermost-redux/selectors/entities/preferences';
+
 import ChannelView from './channel_view';
 import type {Props} from './channel_view';
 
@@ -25,6 +27,9 @@ describe('components/channel_view', () => {
         goToLastViewedChannel: jest.fn(),
         isFirstAdmin: false,
         enableWebSocketEventScope: false,
+        tabContent: undefined,
+        channelContentPlugin: null,
+        theme: {} as Theme,
     };
 
     it('Should match snapshot with base props', () => {

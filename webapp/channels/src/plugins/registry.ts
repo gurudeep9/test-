@@ -203,6 +203,127 @@ export default class PluginRegistry {
         return id;
     });
 
+    // Add an item to the left hand sidebar.
+    // Accepts the following:
+    // - text - string or React element to use as the text
+    // - route - the route to be displayed at.
+    // - component - a react component to display.
+    registerLeftHandSidebarItem = reArg([
+        'text',
+        'route',
+        'component',
+    ], ({
+        text,
+        route,
+        component,
+    }: {
+        text: ReactResolvable;
+        route: string;
+        component: ReactResolvable;
+    }) => {
+        const id = generateId();
+        let fixedRoute = standardizeRoute(route);
+        fixedRoute = this.id + '/' + fixedRoute;
+
+        const data = {
+            id,
+            pluginId: this.id,
+            route: fixedRoute,
+            text: resolveReactElement(text),
+        };
+
+        store.dispatch({
+            type: ActionTypes.RECEIVED_PLUGIN_COMPONENT,
+            name: 'LeftHandSidebarItem',
+            data,
+        });
+
+        store.dispatch({
+            type: ActionTypes.RECEIVED_PLUGIN_COMPONENT,
+            name: 'NeedsChannelSidebarComponent',
+            data: {
+                id,
+                pluginId: this.id,
+                component,
+                route: fixedRoute,
+            },
+        });
+
+        return id;
+    });
+
+    // Add a tab to a channel. Requires a channel content component.
+    // Accepts the following:
+    // - text - string or React element to use as the text
+    // - icon - React element to use as the channel header button icon
+    // - channelId - id of channel to add tabs to
+    // - channelContentId - id of registered channel content component
+    // - props - any props to pass to the channel content component
+    registerChannelTab = reArg([
+        'text',
+        'icon',
+        'channelId',
+        'channelContentId',
+        'props',
+    ], ({
+        text,
+        icon,
+        channelId,
+        channelContentId,
+        props,
+    }: {
+        text: ReactResolvable;
+        icon: ReactResolvable;
+        channelId: string;
+        channelContentId: string;
+        props?: {[name: string]: any};
+    }) => {
+        const pluginComponentId = generateId();
+
+        store.dispatch({
+            type: ActionTypes.RECEIVED_PLUGIN_COMPONENT,
+            name: 'ChannelTabButton',
+            data: {
+                id: pluginComponentId,
+                pluginId: this.id,
+                icon,
+                text,
+                channelId,
+                channelContentId,
+                props,
+            },
+        });
+
+        return pluginComponentId;
+    });
+
+    // Add a channel content component for use with channel tabs.
+    // Accepts the following:
+    // - component - a react component to display.
+    registerChannelTabContent = reArg([
+        'component',
+    ], ({
+        component,
+    }: {
+        text: ReactResolvable;
+        icon: ReactResolvable;
+        component: ReactResolvable;
+    }) => {
+        const id = generateId();
+
+        store.dispatch({
+            type: ActionTypes.RECEIVED_PLUGIN_COMPONENT,
+            name: 'ChannelTabContentComponent',
+            data: {
+                id,
+                pluginId: this.id,
+                component,
+            },
+        });
+
+        return id;
+    });
+
     // Add a button to the channel intro message.
     // Accepts the following:
     // - icon - React element to use as the button's icon
@@ -422,6 +543,27 @@ export default class PluginRegistry {
                 text: resolveReactElement(text),
                 action,
                 shouldRender,
+            },
+        });
+
+        return id;
+    });
+
+    // Register a component to render custom content for a specific channel.
+    // Accepts a string type and a component.
+    // Returns a unique identifier.
+    registerChannelContentComponent = reArg(['channelId', 'component', 'tabText', 'lhsIcon'], ({channelId, component, tabText, lhsIcon}) => {
+        const id = generateId();
+
+        store.dispatch({
+            type: ActionTypes.RECEIVED_PLUGIN_CHANNEL_CONTENT_COMPONENT,
+            data: {
+                id,
+                pluginId: this.id,
+                channelId,
+                component,
+                tabText,
+                lhsIcon,
             },
         });
 
@@ -699,6 +841,16 @@ export default class PluginRegistry {
     unregisterPostTypeComponent = reArg(['componentId'], ({componentId}: {componentId: string}) => {
         store.dispatch({
             type: ActionTypes.REMOVED_PLUGIN_POST_COMPONENT,
+            id: componentId,
+        });
+    });
+
+    // Unregister a component that provided custom content for a specific channel.
+    // Accepts a string id.
+    // Returns undefined in all cases.
+    unregisterChannelContentComponent = reArg(['componentId'], ({componentId}: {componentId: string}) => {
+        store.dispatch({
+            type: ActionTypes.REMOVED_PLUGIN_CHANNEL_CONTENT_COMPONENT,
             id: componentId,
         });
     });
