@@ -60,6 +60,9 @@ const (
 	PreferenceEmailIntervalHour              = "hour"
 	PreferenceEmailIntervalHourAsSeconds     = "3600"
 	PreferenceCloudUserEphemeralInfo         = "cloud_user_ephemeral_info"
+
+	PreferenceLimitVisibleDmsGms         = "limit_visible_dms_gms"
+	PreferenceMaxLimitVisibleDmsGmsValue = 40
 )
 
 type Preference struct {
