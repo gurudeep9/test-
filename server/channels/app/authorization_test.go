@@ -241,9 +241,9 @@ func TestHasPermissionToUser(t *testing.T) {
 	th := Setup(t).InitBasic()
 	defer th.TearDown()
 
-	assert.True(t, th.App.HasPermissionToUser(th.SystemAdminUser.Id, th.BasicUser.Id))
-	assert.True(t, th.App.HasPermissionToUser(th.BasicUser.Id, th.BasicUser.Id))
-	assert.False(t, th.App.HasPermissionToUser(th.BasicUser.Id, th.BasicUser2.Id))
+	assert.True(t, th.App.HasPermissionToUser(th.Context, th.SystemAdminUser.Id, th.BasicUser.Id))
+	assert.True(t, th.App.HasPermissionToUser(th.Context, th.BasicUser.Id, th.BasicUser.Id))
+	assert.False(t, th.App.HasPermissionToUser(th.Context, th.BasicUser.Id, th.BasicUser2.Id))
 }
 
 func TestSessionHasPermissionToManageBot(t *testing.T) {
@@ -363,8 +363,8 @@ func TestSessionHasPermissionToUser(t *testing.T) {
 			UserId: th.BasicUser.Id,
 			Roles:  model.SystemUserRoleId,
 		}
-		assert.True(t, th.App.SessionHasPermissionToUser(session, th.BasicUser.Id))
-		assert.False(t, th.App.SessionHasPermissionToUser(session, th.BasicUser2.Id))
+		assert.True(t, th.App.SessionHasPermissionToUser(th.Context, session, th.BasicUser.Id))
+		assert.False(t, th.App.SessionHasPermissionToUser(th.Context, session, th.BasicUser2.Id))
 	})
 
 	t.Run("test user manager access", func(t *testing.T) {
@@ -372,10 +372,10 @@ func TestSessionHasPermissionToUser(t *testing.T) {
 			UserId: th.BasicUser.Id,
 			Roles:  model.SystemUserManagerRoleId,
 		}
-		assert.False(t, th.App.SessionHasPermissionToUser(session, th.BasicUser2.Id))
+		assert.False(t, th.App.SessionHasPermissionToUser(th.Context, session, th.BasicUser2.Id))
 
 		th.AddPermissionToRole(model.PermissionEditOtherUsers.Id, model.SystemUserManagerRoleId)
-		assert.True(t, th.App.SessionHasPermissionToUser(session, th.BasicUser2.Id))
+		assert.True(t, th.App.SessionHasPermissionToUser(th.Context, session, th.BasicUser2.Id))
 		th.RemovePermissionFromRole(model.PermissionEditOtherUsers.Id, model.SystemUserManagerRoleId)
 
 		bot, err := th.App.CreateBot(th.Context, &model.Bot{
@@ -387,7 +387,7 @@ func TestSessionHasPermissionToUser(t *testing.T) {
 		assert.NotNil(t, bot)
 		defer th.App.PermanentDeleteBot(th.Context, bot.UserId)
 
-		assert.False(t, th.App.SessionHasPermissionToUser(session, bot.UserId))
+		assert.False(t, th.App.SessionHasPermissionToUser(th.Context, session, bot.UserId))
 	})
 
 	t.Run("test admin user access", func(t *testing.T) {
@@ -395,8 +395,8 @@ func TestSessionHasPermissionToUser(t *testing.T) {
 			UserId: th.SystemAdminUser.Id,
 			Roles:  model.SystemAdminRoleId,
 		}
-		assert.True(t, th.App.SessionHasPermissionToUser(session, th.BasicUser.Id))
-		assert.True(t, th.App.SessionHasPermissionToUser(session, th.BasicUser2.Id))
+		assert.True(t, th.App.SessionHasPermissionToUser(th.Context, session, th.BasicUser.Id))
+		assert.True(t, th.App.SessionHasPermissionToUser(th.Context, session, th.BasicUser2.Id))
 	})
 }
 
@@ -544,7 +544,7 @@ func TestSessionHasPermissionToGroup(t *testing.T) {
 		session, err := th.App.CreateSession(th.Context, &model.Session{UserId: th.BasicUser.Id, Props: model.StringMap{}, Roles: systemRole.Name})
 		require.Nil(t, err)
 
-		result := th.App.SessionHasPermissionToGroup(*session, group.Id, permission)
+		result := th.App.SessionHasPermissionToGroup(th.Context, *session, group.Id, permission)
 
 		if permissionShouldBeGranted {
 			require.True(t, result, fmt.Sprintf("row: %v", row))
@@ -693,29 +693,29 @@ func TestSessionHasPermissionToChannelByPost(t *testing.T) {
 	th.App.DeleteChannel(th.Context, archivedChannel, th.SystemAdminUser.Id)
 
 	t.Run("read channel", func(t *testing.T) {
-		require.Equal(t, true, th.App.SessionHasPermissionToChannelByPost(*session, post.Id, model.PermissionReadChannel))
-		require.Equal(t, false, th.App.SessionHasPermissionToChannelByPost(*session2, post.Id, model.PermissionReadChannel))
+		require.Equal(t, true, th.App.SessionHasPermissionToChannelByPost(th.Context, *session, post.Id, model.PermissionReadChannel))
+		require.Equal(t, false, th.App.SessionHasPermissionToChannelByPost(th.Context, *session2, post.Id, model.PermissionReadChannel))
 	})
 
 	t.Run("read archived channel - setting off", func(t *testing.T) {
 		th.App.UpdateConfig(func(cfg *model.Config) {
 			cfg.TeamSettings.ExperimentalViewArchivedChannels = model.NewBool(false)
 		})
-		require.Equal(t, false, th.App.SessionHasPermissionToChannelByPost(*session, archivedPost.Id, model.PermissionReadChannel))
-		require.Equal(t, false, th.App.SessionHasPermissionToChannelByPost(*session2, archivedPost.Id, model.PermissionReadChannel))
+		require.Equal(t, false, th.App.SessionHasPermissionToChannelByPost(th.Context, *session, archivedPost.Id, model.PermissionReadChannel))
+		require.Equal(t, false, th.App.SessionHasPermissionToChannelByPost(th.Context, *session2, archivedPost.Id, model.PermissionReadChannel))
 	})
 
 	t.Run("read archived channel - setting on", func(t *testing.T) {
 		th.App.UpdateConfig(func(cfg *model.Config) {
 			cfg.TeamSettings.ExperimentalViewArchivedChannels = model.NewBool(true)
 		})
-		require.Equal(t, true, th.App.SessionHasPermissionToChannelByPost(*session, archivedPost.Id, model.PermissionReadChannel))
-		require.Equal(t, false, th.App.SessionHasPermissionToChannelByPost(*session2, archivedPost.Id, model.PermissionReadChannel))
+		require.Equal(t, true, th.App.SessionHasPermissionToChannelByPost(th.Context, *session, archivedPost.Id, model.PermissionReadChannel))
+		require.Equal(t, false, th.App.SessionHasPermissionToChannelByPost(th.Context, *session2, archivedPost.Id, model.PermissionReadChannel))
 	})
 
 	t.Run("read public channel", func(t *testing.T) {
-		require.Equal(t, true, th.App.SessionHasPermissionToChannelByPost(*session, post.Id, model.PermissionReadPublicChannel))
-		require.Equal(t, true, th.App.SessionHasPermissionToChannelByPost(*session2, post.Id, model.PermissionReadPublicChannel))
+		require.Equal(t, true, th.App.SessionHasPermissionToChannelByPost(th.Context, *session, post.Id, model.PermissionReadPublicChannel))
+		require.Equal(t, true, th.App.SessionHasPermissionToChannelByPost(th.Context, *session2, post.Id, model.PermissionReadPublicChannel))
 	})
 
 	t.Run("read channel - user is admin", func(t *testing.T) {
@@ -725,7 +725,7 @@ func TestSessionHasPermissionToChannelByPost(t *testing.T) {
 		})
 		require.Nil(t, err)
 
-		require.Equal(t, true, th.App.SessionHasPermissionToChannelByPost(*adminSession, post.Id, model.PermissionReadChannel))
+		require.Equal(t, true, th.App.SessionHasPermissionToChannelByPost(th.Context, *adminSession, post.Id, model.PermissionReadChannel))
 	})
 }
 

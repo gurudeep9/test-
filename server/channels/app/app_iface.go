@@ -901,13 +901,13 @@ type AppIface interface {
 	HandleImages(rctx request.CTX, previewPathList []string, thumbnailPathList []string, fileData [][]byte)
 	HandleIncomingWebhook(c request.CTX, hookID string, req *model.IncomingWebhookRequest) *model.AppError
 	HandleMessageExportConfig(cfg *model.Config, appCfg *model.Config)
-	HasPermissionTo(askingUserId string, permission *model.Permission) bool
+	HasPermissionTo(c request.CTX, askingUserId string, permission *model.Permission) bool
 	HasPermissionToChannel(c request.CTX, askingUserId string, channelID string, permission *model.Permission) bool
 	HasPermissionToChannelByPost(c request.CTX, askingUserId string, postID string, permission *model.Permission) bool
 	HasPermissionToChannelMemberCount(c request.CTX, userID string, channel *model.Channel) bool
 	HasPermissionToReadChannel(c request.CTX, userID string, channel *model.Channel) bool
 	HasPermissionToTeam(c request.CTX, askingUserId string, teamID string, permission *model.Permission) bool
-	HasPermissionToUser(askingUserId string, userID string) bool
+	HasPermissionToUser(c request.CTX, askingUserId string, userID string) bool
 	HasSharedChannel(channelID string) (bool, error)
 	IPFiltering() einterfaces.IPFilteringInterface
 	ImageProxy() *imageproxy.ImageProxy
@@ -1093,15 +1093,15 @@ type AppIface interface {
 	SendTestPushNotification(deviceID string) string
 	ServeInterPluginRequest(w http.ResponseWriter, r *http.Request, sourcePluginId, destinationPluginId string)
 	SessionHasPermissionTo(session model.Session, permission *model.Permission) bool
-	SessionHasPermissionToAny(session model.Session, permissions []*model.Permission) bool
+	SessionHasPermissionToAny(c request.CTX, session model.Session, permissions []*model.Permission) bool
 	SessionHasPermissionToCategory(c request.CTX, session model.Session, userID, teamID, categoryId string) bool
 	SessionHasPermissionToChannel(c request.CTX, session model.Session, channelID string, permission *model.Permission) bool
-	SessionHasPermissionToChannelByPost(session model.Session, postID string, permission *model.Permission) bool
+	SessionHasPermissionToChannelByPost(c request.CTX, session model.Session, postID string, permission *model.Permission) bool
 	SessionHasPermissionToCreateJob(session model.Session, job *model.Job) (bool, *model.Permission)
-	SessionHasPermissionToGroup(session model.Session, groupID string, permission *model.Permission) bool
+	SessionHasPermissionToGroup(c request.CTX, session model.Session, groupID string, permission *model.Permission) bool
 	SessionHasPermissionToReadJob(session model.Session, jobType string) (bool, *model.Permission)
 	SessionHasPermissionToTeam(session model.Session, teamID string, permission *model.Permission) bool
-	SessionHasPermissionToUser(session model.Session, userID string) bool
+	SessionHasPermissionToUser(c request.CTX, session model.Session, userID string) bool
 	SessionHasPermissionToUserOrBot(rctx request.CTX, session model.Session, userID string) bool
 	SetActiveChannel(c request.CTX, userID string, channelID string) *model.AppError
 	SetAutoResponderStatus(rctx request.CTX, user *model.User, oldNotifyProps model.StringMap)

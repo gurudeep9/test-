@@ -21,7 +21,7 @@ func (a *App) SessionHasPermissionTo(session model.Session, permission *model.Pe
 	return a.RolesGrantPermission(session.GetUserRoles(), permission.Id)
 }
 
-func (a *App) SessionHasPermissionToAny(session model.Session, permissions []*model.Permission) bool {
+func (a *App) SessionHasPermissionToAny(c request.CTX, session model.Session, permissions []*model.Permission) bool {
 	for _, perm := range permissions {
 		if a.SessionHasPermissionTo(session, perm) {
 			return true
@@ -151,7 +151,7 @@ func (a *App) SessionHasPermissionToChannels(c request.CTX, session model.Sessio
 	return true
 }
 
-func (a *App) SessionHasPermissionToGroup(session model.Session, groupID string, permission *model.Permission) bool {
+func (a *App) SessionHasPermissionToGroup(c request.CTX, session model.Session, groupID string, permission *model.Permission) bool {
 	groupMember, err := a.Srv().Store().Group().GetMember(groupID, session.UserId)
 	// don't reject immediately on ErrNoRows error because there's further authz logic below for non-groupmembers
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -170,7 +170,7 @@ func (a *App) SessionHasPermissionToGroup(session model.Session, groupID string,
 	return a.SessionHasPermissionTo(session, permission)
 }
 
-func (a *App) SessionHasPermissionToChannelByPost(session model.Session, postID string, permission *model.Permission) bool {
+func (a *App) SessionHasPermissionToChannelByPost(c request.CTX, session model.Session, postID string, permission *model.Permission) bool {
 	if postID == "" {
 		return false
 	}
@@ -198,7 +198,7 @@ func (a *App) SessionHasPermissionToCategory(c request.CTX, session model.Sessio
 	return err == nil && category != nil && category.UserId == session.UserId && category.UserId == userID && category.TeamId == teamID
 }
 
-func (a *App) SessionHasPermissionToUser(session model.Session, userID string) bool {
+func (a *App) SessionHasPermissionToUser(c request.CTX, session model.Session, userID string) bool {
 	if userID == "" {
 		return false
 	}
@@ -227,14 +227,14 @@ func (a *App) SessionHasPermissionToUserOrBot(rctx request.CTX, session model.Se
 		return true
 	}
 	if err.Id == "store.sql_bot.get.missing.app_error" && err.Where == "SqlBotStore.Get" {
-		if a.SessionHasPermissionToUser(session, userID) {
+		if a.SessionHasPermissionToUser(rctx, session, userID) {
 			return true
 		}
 	}
 	return false
 }
 
-func (a *App) HasPermissionTo(askingUserId string, permission *model.Permission) bool {
+func (a *App) HasPermissionTo(c request.CTX, askingUserId string, permission *model.Permission) bool {
 	user, err := a.GetUser(askingUserId)
 	if err != nil {
 		return false
@@ -255,7 +255,7 @@ func (a *App) HasPermissionToTeam(c request.CTX, askingUserId string, teamID str
 			return true
 		}
 	}
-	return a.HasPermissionTo(askingUserId, permission)
+	return a.HasPermissionTo(c, askingUserId, permission)
 }
 
 func (a *App) HasPermissionToChannel(c request.CTX, askingUserId string, channelID string, permission *model.Permission) bool {
@@ -282,7 +282,7 @@ func (a *App) HasPermissionToChannel(c request.CTX, askingUserId string, channel
 		return a.HasPermissionToTeam(c, askingUserId, channel.TeamId, permission)
 	}
 
-	return a.HasPermissionTo(askingUserId, permission)
+	return a.HasPermissionTo(c, askingUserId, permission)
 }
 
 func (a *App) HasPermissionToChannelByPost(c request.CTX, askingUserId string, postID string, permission *model.Permission) bool {
@@ -296,15 +296,15 @@ func (a *App) HasPermissionToChannelByPost(c request.CTX, askingUserId string, p
 		return a.HasPermissionToTeam(c, askingUserId, channel.TeamId, permission)
 	}
 
-	return a.HasPermissionTo(askingUserId, permission)
+	return a.HasPermissionTo(c, askingUserId, permission)
 }
 
-func (a *App) HasPermissionToUser(askingUserId string, userID string) bool {
+func (a *App) HasPermissionToUser(c request.CTX, askingUserId string, userID string) bool {
 	if askingUserId == userID {
 		return true
 	}
 
-	if a.HasPermissionTo(askingUserId, model.PermissionEditOtherUsers) {
+	if a.HasPermissionTo(c, askingUserId, model.PermissionEditOtherUsers) {
 		return true
 	}
 
