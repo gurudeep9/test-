@@ -6,14 +6,18 @@
 import {DynamicSizeList} from 'dynamic-virtualized-list';
 import type {OnItemsRenderedArgs} from 'dynamic-virtualized-list';
 import React from 'react';
+import {FormattedMessage} from 'react-intl';
 import AutoSizer from 'react-virtualized-auto-sizer';
 
+import type {ActionResult} from 'mattermost-redux/types/actions';
 import EventEmitter from 'mattermost-redux/utils/event_emitter';
-import {getNewMessagesIndex, isDateLine, isStartOfNewMessages} from 'mattermost-redux/utils/post_list';
+import {getNewMessagesIndex, isCreateComment, isDateLine, isStartOfNewMessages} from 'mattermost-redux/utils/post_list';
 
 import type {updateNewMessagesAtInChannel} from 'actions/global_actions';
 import type {CanLoadMorePosts} from 'actions/views/channel';
 
+import AdvancedCreatePost from 'components/advanced_create_post';
+import FormattedMarkdownMessage from 'components/formatted_markdown_message';
 import FloatingTimestamp from 'components/post_view/floating_timestamp';
 import PostListRow from 'components/post_view/post_list_row';
 import ScrollToBottomArrows from 'components/post_view/scroll_to_bottom_arrows';
@@ -38,6 +42,7 @@ const MAXIMUM_POSTS_FOR_SLICING = {
 };
 
 const postListStyle = {
+    position: 'relative',
     padding: '14px 0px 7px',
 };
 
@@ -95,6 +100,9 @@ type Props = {
 
     shouldStartFromBottomWhenUnread: boolean;
 
+    deactivatedChannel: boolean;
+    channelIsArchived: boolean;
+
     actions: {
 
         /*
@@ -120,6 +128,8 @@ type Props = {
         updateNewMessagesAtInChannel: typeof updateNewMessagesAtInChannel;
 
         toggleShouldStartFromBottomWhenUnread: () => void;
+
+        goToLastViewedChannel: () => Promise<ActionResult>;
     };
 }
 
@@ -153,6 +163,7 @@ export default class PostList extends React.PureComponent<Props, State> {
     showSearchHintThreshold: number;
     mounted: boolean;
     newMessageLineIndex: number;
+    channelViewRef: React.RefObject<HTMLDivElement>;
 
     constructor(props: Props) {
         super(props);
@@ -203,6 +214,7 @@ export default class PostList extends React.PureComponent<Props, State> {
             Math.max(postIndex + 30, Math.min((props.postListIds || []).length - 1, maxPostsForSlicing)),
         ];
         this.showSearchHintThreshold = this.getShowSearchHintThreshold();
+        this.channelViewRef = React.createRef();
     }
 
     componentDidMount() {
@@ -334,6 +346,14 @@ export default class PostList extends React.PureComponent<Props, State> {
         });
     };
 
+    getChannelView = () => {
+        return this.channelViewRef.current;
+    };
+
+    onClickCloseChannel = () => {
+        this.props.actions.goToLastViewedChannel();
+    };
+
     renderRow = ({data, itemId, style}: {data: string[]; itemId: string; style: Record<string, string>}) => {
         const index = data.indexOf(itemId);
         let className = '';
@@ -355,6 +375,74 @@ export default class PostList extends React.PureComponent<Props, State> {
 
         // Since the first in the list is the latest message
         const isLastPost = itemId === this.state.postListIds[0];
+
+        let createPost;
+        if (this.props.deactivatedChannel) {
+            createPost = (
+                <div
+                    className='post-create__container'
+                    id='post-create'
+                >
+                    <div
+                        className='channel-archived__message'
+                    >
+                        <FormattedMarkdownMessage
+                            id='create_post.deactivated'
+                            defaultMessage='You are viewing an archived channel with a **deactivated user**. New messages cannot be posted.'
+                        />
+                        <button
+                            className='btn btn-primary channel-archived__close-btn'
+                            onClick={this.onClickCloseChannel}
+                        >
+                            <FormattedMessage
+                                id='center_panel.archived.closeChannel'
+                                defaultMessage='Close Channel'
+                            />
+                        </button>
+                    </div>
+                </div>
+            );
+        } else if (this.props.channelIsArchived) {
+            createPost = (
+                <div
+                    className='post-create__container'
+                    id='post-create'
+                >
+                    <div
+                        id='channelArchivedMessage'
+                        className='channel-archived__message'
+                    >
+                        <FormattedMarkdownMessage
+                            id='archivedChannelMessage'
+                            defaultMessage='You are viewing an **archived channel**. New messages cannot be posted.'
+                        />
+                        <button
+                            className='btn btn-primary channel-archived__close-btn'
+                            onClick={this.onClickCloseChannel}
+                        >
+                            <FormattedMessage
+                                id='center_panel.archived.closeChannel'
+                                defaultMessage='Close Channel'
+                            />
+                        </button>
+                    </div>
+                </div>
+            );
+        } else {
+            createPost = (
+                <div
+                    id='post-create'
+                    data-testid='post-create'
+                    className='post-create__container AdvancedTextEditor__ctr'
+                >
+                    <AdvancedCreatePost getChannelView={this.getChannelView}/>
+                </div>
+            );
+        }
+
+        if (isCreateComment(itemId)) {
+            return createPost;
+        }
 
         return (
             <div
