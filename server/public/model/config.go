@@ -2152,11 +2152,18 @@ func (s *AnnouncementSettings) SetDefaults() {
 	}
 }
 
+type CustomTheme struct {
+	ID    string
+	Name  string
+	Theme string
+}
+
 type ThemeSettings struct {
 	EnableThemeSelection *bool   `access:"experimental_features"`
 	DefaultTheme         *string `access:"experimental_features"`
 	AllowCustomThemes    *bool   `access:"experimental_features"`
 	AllowedThemes        []string
+	CustomThemes         []CustomTheme `access:"experimental_features"`
 }
 
 func (s *ThemeSettings) SetDefaults() {
@@ -2174,6 +2181,10 @@ func (s *ThemeSettings) SetDefaults() {
 
 	if s.AllowedThemes == nil {
 		s.AllowedThemes = []string{}
+	}
+
+	if s.CustomThemes == nil {
+		s.CustomThemes = []CustomTheme{}
 	}
 }
 
